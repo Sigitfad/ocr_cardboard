@@ -1,23 +1,58 @@
 """
 Fungsi utility dan helper yang digunakan di berbagai modul.
+UPDATED: Edge Detection dengan garis putih neon terang pada background hitam pekat
 """
 
-import os  # File system operations | Modul untuk operasi file system
-import re  # Regular expression operations | Modul untuk pattern matching dan text processing
-import numpy as np  # Numerical computing | Library untuk numerical operations
-import cv2  # Computer vision library | Library OpenCV untuk image processing
-from datetime import datetime  # Date/time operations | Modul untuk date/time handling
-from config import Resampling  # Image resampling method dari config | Metode resize image
+import os
+import re
+import numpy as np
+import cv2
+from datetime import datetime
+from config import Resampling
+
+# === EDGE DETECTION ===
+# Fungsi untuk Edge Detection dengan background hitam pekat dan garis putih neon terang
+
+def apply_edge_detection(frame):
+    """
+    Fungsi untuk menerapkan Edge Detection pada frame dengan garis putih neon terang
+    Tujuan: Deteksi tepi objek dan teks dengan background HITAM PEKAT MURNI dan garis putih neon
+    Parameter: frame = numpy array BGR frame dari OpenCV
+    Return: numpy array frame edge detection dalam format BGR (3 channel)
+    
+    Menggunakan algoritma Canny Edge Detection dengan background pure black (0,0,0)
+    """
+    # Konversi ke grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+    # Apply Gaussian Blur untuk mengurangi noise
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    
+    # Canny Edge Detection dengan threshold lebih rendah untuk lebih banyak detail
+    edges = cv2.Canny(blurred, 30, 100)
+    
+    # Dilate edges untuk membuat garis lebih tebal dan terang
+    kernel = np.ones((2, 2), np.uint8)
+    edges_dilated = cv2.dilate(edges, kernel, iterations=1)
+    
+    # CRITICAL: Buat canvas HITAM MURNI (pure black) terlebih dahulu
+    # Ini memastikan background benar-benar hitam pekat tanpa noise abu-abu
+    edges_bgr = np.zeros((edges_dilated.shape[0], edges_dilated.shape[1], 3), dtype=np.uint8)
+    
+    # HANYA gambar garis putih pada pixel yang terdeteksi sebagai edge
+    # Background tetap hitam murni (0,0,0), hanya edge yang jadi putih (255,255,255)
+    edges_bgr[edges_dilated > 0] = [255, 255, 255]  # BGR: Putih murni hanya di edge
+    
+    # OPTIONAL: Tingkatkan brightness garis putih jika perlu lebih terang
+    # Uncomment baris di bawah untuk garis lebih glowing
+    # edges_bgr[edges_dilated > 0] = [255, 255, 255]
+    
+    return edges_bgr
+
 
 # === OCR CORRECTION LOGIC ===
-# Fungsi-fungsi koreksi untuk mengatasi error OCR yang umum terjadi
 
 def fix_common_ocr_errors_jis(text):
-    # Fungsi koreksi OCR khusus untuk format JIS | Tujuan: Perbaiki error OCR dan normalisasi format kode JIS
-    # Format: [2-3 digit][1 huruf][2-3 digit][L/R optional][(S) optional]
-    # Parameter: text = String kode JIS yang terdeteksi (mungkin ada error)
-    # Return: String kode JIS yang sudah dikoreksi dan dinormalisasi
-    
     text = text.strip().upper()
     text = re.sub(r'[^A-Z0-9()]', '', text)
 
@@ -76,22 +111,15 @@ def fix_common_ocr_errors_jis(text):
 
 
 def fix_common_ocr_errors_din(text):
-    # Fungsi koreksi OCR khusus untuk format DIN | Tujuan: Perbaiki error OCR pada format DIN dan normalisasi spasi
-    # Format: [KODE_ALPHA] [ANGKA dengan optional huruf] [optional ISS]
-    # Contoh: LBN 1, LN0 260A, LN4 776A ISS
-    # Parameter: text = String kode DIN yang terdeteksi (mungkin ada error)
-    # Return: String kode DIN yang sudah dikoreksi dan dinormalisasi
-    
     text = text.strip().upper()
     
-    # Mapping OCR errors yang umum
     char_to_digit = {
-        'O': '0', 'Q': '0',  # O dan Q sering terbaca sebagai 0
-        'I': '1', 'l': '1',  # I dan l sering terbaca sebagai 1
-        'Z': '2',            # Z terbaca sebagai 2
-        'S': '5',            # S bisa terbaca sebagai 5
-        'G': '6',            # G terbaca sebagai 6
-        'B': '8',            # B terbaca sebagai 8
+        'O': '0', 'Q': '0',
+        'I': '1', 'l': '1',
+        'Z': '2',
+        'S': '5',
+        'G': '6',
+        'B': '8',
     }
     
     digit_to_char = {
@@ -99,10 +127,8 @@ def fix_common_ocr_errors_din(text):
         '1': 'I',
     }
     
-    # Hilangkan karakter non-alphanumeric kecuali spasi
     text = re.sub(r'[^A-Z0-9\s]', '', text)
     
-    # Pisahkan menjadi tokens
     tokens = text.split()
     
     if len(tokens) == 0:
@@ -112,18 +138,14 @@ def fix_common_ocr_errors_din(text):
     
     for i, token in enumerate(tokens):
         if i == 0:
-            # Token pertama: harus prefix huruf (LBN, LN0, LN1, dll)
-            # Format: [L][B/N][N/0-4]
             corrected = ""
             for j, char in enumerate(token):
                 if j == 0:
-                    # Huruf pertama harus 'L'
                     if char in ['I', '1', 'l']:
                         corrected += 'L'
                     else:
                         corrected += char
                 elif j == 1:
-                    # Huruf kedua: B atau N
                     if char in ['8']:
                         corrected += 'B'
                     elif char in ['H', 'M']:
@@ -131,15 +153,12 @@ def fix_common_ocr_errors_din(text):
                     else:
                         corrected += char
                 elif j == 2:
-                    # Bisa huruf (N) atau angka (0-4)
                     if token[:2] == "LB":
-                        # LBN format
                         if char in ['H', 'M']:
                             corrected += 'N'
                         else:
                             corrected += char
                     else:
-                        # LN[digit] format
                         if char in char_to_digit:
                             corrected += char_to_digit[char]
                         else:
@@ -150,7 +169,6 @@ def fix_common_ocr_errors_din(text):
             corrected_tokens.append(corrected)
             
         elif i == 1:
-            # Token kedua: angka dengan optional huruf di akhir (260A, 450A, 1, 2, 3)
             corrected = ""
             for j, char in enumerate(token):
                 if char.isdigit():
@@ -158,7 +176,6 @@ def fix_common_ocr_errors_din(text):
                 elif char in char_to_digit:
                     corrected += char_to_digit[char]
                 elif j == len(token) - 1 and char.isalpha():
-                    # Huruf di akhir (biasanya 'A')
                     if char in ['4', 'H']:
                         corrected += 'A'
                     else:
@@ -169,7 +186,6 @@ def fix_common_ocr_errors_din(text):
             corrected_tokens.append(corrected)
             
         elif i == 2:
-            # Token ketiga: biasanya ISS
             corrected = token
             if token in ['I55', 'IS5', 'I5S', '155']:
                 corrected = 'ISS'
@@ -180,24 +196,15 @@ def fix_common_ocr_errors_din(text):
     
     result = ' '.join(corrected_tokens)
     
-    # Final cleanup: pastikan format yang valid
-    # LBN harus diikuti spasi dan satu digit
     result = re.sub(r'(LBN)(\d)', r'\1 \2', result)
-    # LN[digit] harus diikuti spasi dan angka
     result = re.sub(r'(LN\d)(\d)', r'\1 \2', result)
-    # Pastikan ada spasi sebelum ISS
     result = re.sub(r'([A-Z0-9])(ISS)', r'\1 \2', result)
-    # Bersihkan multiple spaces
     result = re.sub(r'\s+', ' ', result)
     
     return result.strip()
 
 
 def fix_common_ocr_errors(text, preset):
-    # Main function yang memilih koreksi berdasarkan preset aktif | Tujuan: Dispatcher function untuk koreksi JIS atau DIN
-    # Parameter: text = String kode yang terdeteksi, preset = String "JIS" atau "DIN"
-    # Return: String kode yang sudah dikoreksi sesuai preset
-    
     if preset == "JIS":
         return fix_common_ocr_errors_jis(text)
     elif preset == "DIN":
@@ -207,25 +214,16 @@ def fix_common_ocr_errors(text, preset):
 
 
 # === FRAME PROCESSING ===
-# Fungsi-fungsi untuk processing dan manipulasi frame dari kamera
 
 def convert_frame_to_binary(frame):
-    # Fungsi untuk konversi frame BGR ke binary (hitam putih) menggunakan OTSU threshold | Tujuan: Ubah gambar ke binary untuk processing lebih baik
-    # Parameter: frame = numpy array BGR frame dari OpenCV
-    # Return: numpy array frame binary dalam format BGR (3 channel untuk konsistensi)
-    
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    binary_bgr = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-    return binary_bgr
+    """
+    UPDATED: Gunakan edge detection dengan putih neon untuk export Excel
+    """
+    # Gunakan edge detection dengan garis putih neon pada background hitam
+    return apply_edge_detection(frame)
 
 
 def find_external_camera(max_cameras=5):
-    # Fungsi mencari kamera eksternal yang berfungsi, prioritas ke kamera eksternal | Tujuan: Auto-detect kamera terbaik yang tersedia
-    # Iterasi semua kamera dan prioritas: eksternal (indeks > 0) > internal (indeks 0)
-    # Parameter: max_cameras = Maksimal indeks kamera yang akan di-check
-    # Return: Integer indeks kamera yang berfungsi (preferensi eksternal)
-    
     best_working_index = 0
 
     for i in range(max_cameras):
@@ -245,19 +243,12 @@ def find_external_camera(max_cameras=5):
 
 
 def create_directories():
-    # Fungsi membuat direktori yang diperlukan jika belum ada | Tujuan: Setup folder untuk menyimpan file
-    # Membuat folder untuk menyimpan gambar scan dan file Excel jika tidak ada
-    
     from config import IMAGE_DIR, EXCEL_DIR
     os.makedirs(IMAGE_DIR, exist_ok=True)
     os.makedirs(EXCEL_DIR, exist_ok=True)
 
 
 def cleanup_temp_files(temp_files_list):
-    # Fungsi hapus file temporary dari sistem | Tujuan: Bersihkan temporary files untuk save disk space
-    # Iterasi list file dan hapus satu per satu, handle exception jika file tidak ada
-    # Parameter: temp_files_list = List of string paths untuk file yang akan dihapus
-    
     for t_path in temp_files_list:
         if os.path.exists(t_path):
             try:

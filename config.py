@@ -1,11 +1,14 @@
 # Konfigurasi PENGATURAN dan pengaturan aplikasi QC_GS-Battery
 # File ini berisi semua PENGATURAN yang digunakan di seluruh aplikasi untuk setup global
+# Tujuan: Centralized configuration untuk semua constants dan settings aplikasi
+# Fungsi: Menyediakan satu tempat untuk manage semua configuration values
 
 import os  # File system operations | Modul untuk operasi file system (buat folder, cek path, dll)
 from PIL import Image  # Image processing library | Library untuk proses image (resize, format, dll)
 
 # === PENGATURAN APLIKASI ===
 # Nilai-nilai tetap yang digunakan di seluruh aplikasi untuk konfigurasi umum
+# Tujuan: Define basic application information dan window dimensions
 APP_NAME = "QC_GS-Battery"  # Nama aplikasi utama | Tampil di window title dan UI
 APP_VERSION = "1.0.0"  # Versi aplikasi | Untuk tracking version updates
 WINDOW_WIDTH = 1024  # Lebar window utama (pixels) | Ukuran default window saat dibuka
@@ -15,12 +18,14 @@ RIGHT_PANEL_WIDTH = 280  # Lebar panel kanan untuk data display (pixels) | Tempa
 
 # === DIREKTORI ===
 # Path folder untuk menyimpan berbagai jenis file aplikasi
+# Tujuan: Define storage locations untuk images, exports, dan database
 IMAGE_DIR = "images"  # Direktori untuk menyimpan gambar scan | Folder tempat screenshot kamera disimpan
 EXCEL_DIR = "file_excel"  # Direktori untuk menyimpan file Excel export | Folder tempat file export di-save
 DB_FILE = "detection.db"  # File database SQLite | Database file untuk menyimpan semua deteksi
 
 # === KAMERA ===
 # PENGATURAN untuk konfigurasi kamera dan pengolahan frame
+# Tujuan: Define camera resolution dan processing parameters
 CAMERA_WIDTH = 1280  # Resolusi lebar kamera (pixels) | Ukuran capture dari kamera
 CAMERA_HEIGHT = 720  # Resolusi tinggi kamera (pixels) | Ukuran capture dari kamera
 TARGET_WIDTH = 640  # Lebar target untuk tampilan (pixels) | Ukuran display di UI
@@ -32,6 +37,8 @@ MAX_CAMERAS = 5  # Maksimal kamera yang dicek | Berapa banyak index kamera yang 
 # === PENGATURAN RESAMPLING GAMBAR (KOMPATIBILITAS PILLOW) ===
 # Pillow adalah library Python yang digunakan untuk mengolah gambar,
 # seperti membaca, mengubah ukuran, dan memproses gambar.
+# Tujuan: Setup image resampling method yang compatible dengan berbagai versi Pillow
+# Fungsi: Fallback mechanism untuk support Pillow versi lama dan baru
 
 # Resampling adalah proses menghitung ulang piksel gambar
 # saat gambar diperbesar atau diperkecil agar hasilnya tetap bagus.
@@ -44,25 +51,30 @@ MAX_CAMERAS = 5  # Maksimal kamera yang dicek | Berapa banyak index kamera yang 
 # agar tidak terlihat pecah, biasanya tersedia di Pillow versi lama.
 
 try:
-    # Coba gunakan metode LANCZOS dari Pillow versi terbaru. Jika tersedia, ini adalah pilihan terbaik untuk kualitas gambar.
+    # Coba gunakan metode LANCZOS dari Pillow versi terbaru (10.0+)
+    # Jika tersedia, ini adalah pilihan terbaik untuk kualitas gambar
     Resampling = Image.Resampling.LANCZOS
 
 except AttributeError:
     try:
-        # Jika Pillow versi lama tidak memiliki Image.Resampling. Gunakan LANCZOS versi lama agar tetap kompatibel.
+        # Jika Pillow versi lama tidak memiliki Image.Resampling
+        # Gunakan LANCZOS versi lama agar tetap kompatibel (Pillow 9.x)
         Resampling = Image.LANCZOS
 
     except AttributeError:
-        # Jika Pillow sangat lama dan LANCZOS tidak tersedia. Gunakan ANTIALIAS sebagai pilihan terakhir.
+        # Jika Pillow sangat lama dan LANCZOS tidak tersedia (Pillow < 9)
+        # Gunakan ANTIALIAS sebagai pilihan terakhir
         Resampling = Image.ANTIALIAS
 
 
 # === PRESET DAN POLA ===
 # Preset format dan pattern OCR untuk deteksi kode yang berbeda
+# Tujuan: Define available presets dan regex patterns untuk OCR matching
 PRESETS = ["JIS", "DIN"]  # Daftar preset yang tersedia | Format kode yang bisa dideteksi
 
 # Pattern format: [2-4 HURUF] [ANGKA][HURUF OPSIONAL] [HURUF OPSIONAL]
-# Contoh: LBN 1, LN0 260A, LN4 776A ISS
+# Contoh DIN: LBN 1, LN0 260A, LN4 776A ISS
+# Contoh JIS: 26A17, 28B19L, 50D23R(S)
 PATTERNS = {
     "JIS": r"\b\d{2,3}[A-H]\d{2,3}[LR]?(?:\(S\))?\b",  # Pattern untuk format JIS | Untuk match kode JIS
     "DIN": r"^[A-Z]{2,4}\s+\d+[A-Z]?(?:\s+[A-Z]+)?$"   # Pattern untuk format DIN | Untuk match kode DIN
@@ -70,13 +82,19 @@ PATTERNS = {
 
 # === ALLOWLIST KARAKTER OCR ===
 # Karakter yang diizinkan dalam OCR untuk mengurangi false positive detection
+# Tujuan: Limit OCR recognition ke karakter yang valid saja
+# Fungsi: Improve OCR accuracy dengan membatasi character set
 ALLOWLIST_JIS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYLRS()'  # Karakter yang diizinkan untuk JIS OCR | Validasi hasil OCR JIS
 ALLOWLIST_DIN = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ '     # Karakter yang diizinkan untuk DIN OCR | Validasi hasil OCR DIN
 
 # === JIS TYPES (LABEL) ===
 # Daftar semua tipe/label JIS yang valid untuk dipilih user
+# Tujuan: Provide complete list of valid JIS battery codes
+# Fungsi: Digunakan untuk validasi input user dan dropdown options
+# Format JIS: [Capacity][Type Letter][Size][Terminal (L/R)][Special Marker (S)]
+# Contoh: 50D23R(S) = 50 capacity, D type, 23 size, R terminal, (S) special
 JIS_TYPES = [
-    "Select Label . . .",
+    "Select Label . . .",  # Placeholder - tidak valid untuk scanning
     "26A17", "26A17L", "26A17R", "26A17L(S)", "26A17R(S)",
     "26A19", "26A19L", "26A19R", "26A19L(S)", "26A19R(S)",
     "28A19", "28A19L", "28A19R", "28A19L(S)", "28A19R(S)",
@@ -152,8 +170,12 @@ JIS_TYPES = [
 
 # === DIN TYPES (LABEL) ===
 # Daftar semua tipe/label DIN yang valid untuk dipilih user
+# Tujuan: Provide complete list of valid DIN battery codes
+# Fungsi: Digunakan untuk validasi input user dan dropdown options
+# Format DIN: [Prefix] [Capacity+Letter] [Optional ISS marker]
+# Contoh: LN4 776A ISS = LN4 prefix, 776A capacity rating, ISS marker
 DIN_TYPES = [
-    "Select Label . . .",
+    "Select Label . . .",  # Placeholder - tidak valid untuk scanning
     "LBN 1", "LBN 2", "LBN 3",
     "LN1 450A", "LN1 295A",
     "LN0 260A",
@@ -164,7 +186,14 @@ DIN_TYPES = [
 
 # === MONTHS ===
 # Daftar bulan dalam bahasa Indonesia untuk dropdown date selection
-MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "Oktober", "November", "Desember"]
+# Tujuan: Provide month names untuk date picker dan export dialog
+# Fungsi: User-friendly month selection dalam bahasa Indonesia
+MONTHS = ["January", "February", "March", "April", "May", "June", 
+          "July", "August", "September", "Oktober", "November", "Desember"]
+
+# Mapping nama bulan ke nomor bulan (1-12)
+# Tujuan: Convert nama bulan Indonesia ke integer untuk date processing
+# Fungsi: Digunakan saat build date range untuk export filtering
 MONTH_MAP = {
     "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6, 
     "July": 7, "August": 8, "September": 9, "Oktober": 10, "November": 11, "Desember": 12
