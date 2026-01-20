@@ -1,0 +1,8 @@
+PySide6
+opencv-python
+easyocr
+pandas
+openpyxl
+xlsxwriter
+Pillow
+numpy

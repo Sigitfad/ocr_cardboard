@@ -1,7 +1,3 @@
-"""
-Semua komponen UI menggunakan PySide6 untuk aplikasi QC_GS-Battery.
-"""
-
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QRadioButton, QCheckBox, QGroupBox, QSpinBox,
@@ -51,11 +47,9 @@ class LogicSignals(QThread):
         )
         
     def run(self):
-        """
-        Fungsi jalankan thread
-        Tujuan: Start thread event loop
-        Fungsi: Menjalankan Qt event loop untuk thread ini
-        """
+        #Fungsi jalankan thread
+        #Tujuan: Start thread event loop
+        #Fungsi: Menjalankan Qt event loop untuk thread ini
         self.exec()
 
 
@@ -128,10 +122,10 @@ class MainWindow(QMainWindow):
         self.logic_thread.all_text_signal.connect(self.update_all_text_display)  # Update OCR output
     
     def closeEvent(self, event):
-        #Menangani penutupan jendela (tombol X)
-        #MODIFIED: Tambah warning jika kamera sedang aktif
-        #Tujuan: Prevent user close app saat kamera masih running
-        #Fungsi: Validasi status kamera sebelum allow close
+        # Menangani penutupan jendela (tombol X)
+        # MODIFIED: Tambah warning jika kamera sedang aktif
+        # Tujuan: Prevent user close app saat kamera masih running
+        # Fungsi: Validasi status kamera sebelum allow close
 
         # CHECK: Apakah kamera sedang aktif?
         if self.logic and self.logic.running:
@@ -402,8 +396,7 @@ class MainWindow(QMainWindow):
         #Fungsi: Validasi label, update display label, dan set target di logic
         #Parameter: text (str) - Text dari combo box yang dipilih/diketik user
 
-        # Get preset aktif
-        current_preset = self.preset_combo.currentText()
+        current_preset = self.preset_combo.currentText() #Get preset aktif
         
         # Check apakah label valid
         if not self._is_valid_label(text, current_preset):
