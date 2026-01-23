@@ -2,13 +2,13 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QRadioButton, QCheckBox, QGroupBox, QSpinBox,
     QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QHeaderView, QDialog,
-    QComboBox, QDateEdit, QAbstractItemView, QCompleter
+    QComboBox, QDateEdit, QAbstractItemView, QCompleter, QFrame
 )  # PySide6 GUI components | UI widgets dan layouts
 from PySide6.QtCore import (
     Qt, QTimer, Signal, QThread, QDateTime, QDate, QLocale, QMetaObject
 )  # PySide6 core | Core signal/slot dan threading
 from PySide6.QtGui import (
-    QPixmap, QImage, QFont, QColor
+    QPixmap, QImage, QFont, QColor, QKeyEvent
 )  # PySide6 GUI utilities | Untuk image handling dan styling
 from config import (
     APP_NAME, WINDOW_WIDTH, WINDOW_HEIGHT, CONTROL_PANEL_WIDTH, RIGHT_PANEL_WIDTH,
@@ -70,6 +70,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(APP_NAME)  # Set judul window dari config
         self.setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT)  # Set ukuran dan posisi window
         
+        self.is_fullscreen = False
+        self.normal_geometry = None
         self.logic_thread = None  # Instance LogicSignals thread | Akan diisi saat _setup_logic_thread
         self.logic = None  # Instance DetectionLogic | Akan diisi saat _setup_logic_thread
         
@@ -121,6 +123,45 @@ class MainWindow(QMainWindow):
         self.logic_thread.data_reset_signal.connect(self.update_code_display)  # Reset display data
         self.logic_thread.all_text_signal.connect(self.update_all_text_display)  # Update OCR output
     
+    def keyPressEvent(self, event: QKeyEvent):
+        """
+        Override method untuk handle keyboard input
+        Tujuan: Deteksi tombol F11 untuk toggle fullscreen mode
+        Fungsi: Toggle antara fullscreen dan normal mode seperti browser
+        Parameter: event - QKeyEvent object berisi info tombol yang ditekan
+        """
+        # Check apakah tombol yang ditekan adalah F11
+        if event.key() == Qt.Key.Key_F11:
+            self.toggle_fullscreen()
+        else:
+            # Pass event ke parent class untuk handling default
+            super().keyPressEvent(event)
+    
+    def toggle_fullscreen(self):
+        """
+        Fungsi untuk toggle fullscreen mode
+        Tujuan: Switch antara fullscreen dan normal window mode
+        Fungsi: Menyimpan/restore ukuran window dan toggle fullscreen
+        """
+        if self.is_fullscreen:
+            # Keluar dari fullscreen - kembali ke mode normal
+            self.showNormal()
+            
+            # Restore ukuran dan posisi window sebelumnya
+            if self.normal_geometry:
+                self.setGeometry(self.normal_geometry)
+            
+            self.is_fullscreen = False
+        else:
+            # Masuk ke fullscreen mode
+            # Simpan ukuran window normal sebelum fullscreen
+            self.normal_geometry = self.geometry()
+            
+            # Set window menjadi fullscreen
+            self.showFullScreen()
+            
+            self.is_fullscreen = True
+
     def closeEvent(self, event):
         # Menangani penutupan jendela (tombol X)
         # MODIFIED: Tambah warning jika kamera sedang aktif
@@ -214,94 +255,85 @@ class MainWindow(QMainWindow):
         Fungsi: Membuat semua UI controls (preset, options, label selector, buttons)
         Return: QWidget - Widget panel kontrol yang sudah lengkap
         """
-        frame = QWidget()  # Buat widget container
-        layout = QVBoxLayout(frame)  # Vertical layout
-        layout.setContentsMargins(15, 15, 15, 15)  # Set margins
+        frame = QWidget()
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(15, 15, 15, 15)
 
         # === Top Control Widget (Preset dan Options) ===
         top_control_widget = QWidget()
         top_control_layout = QHBoxLayout(top_control_widget)
         top_control_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # === Group Box untuk Preset Selection ===
-        preset_group = QGroupBox("Tipe:")  # Group box dengan label "Tipe:"
+        preset_group = QGroupBox("Tipe:")
         preset_layout = QVBoxLayout(preset_group)
         preset_layout.setAlignment(Qt.AlignTop)
         preset_layout.setContentsMargins(8, 12, 8, 8)
         preset_layout.setSpacing(6)
 
-        # Combo box untuk pilih preset (JIS atau DIN)
         self.preset_combo = QComboBox()
-        self.preset_combo.addItems(["JIS", "DIN"])  # Tambah pilihan JIS dan DIN
-        self.preset_combo.setCurrentIndex(0)  # Default ke JIS
-        
+        self.preset_combo.addItems(["JIS", "DIN"])
+        self.preset_combo.setCurrentIndex(0)
+
         preset_layout.addWidget(self.preset_combo)
         preset_layout.addStretch()
-        
-        # Lambda function untuk set camera options saat ada perubahan
+
         set_options = lambda: self.logic.set_camera_options(
-            self.preset_combo.currentText(),  # Preset yang dipilih
-            False,  # flip_h disabled (horizontal flip)
-            False,  # flip_v disabled (vertical flip)
-            self.cb_edge.isChecked(),  # Binary mode status
-            self.cb_split.isChecked(),  # Split screen status
-            2.0  # Scan interval 2 detik
+            self.preset_combo.currentText(),
+            False,
+            False,
+            self.cb_edge.isChecked(),
+            self.cb_split.isChecked(),
+            2.0
         ) if self.logic else None
-        
-        # Connect signals
-        self.preset_combo.currentTextChanged.connect(set_options)  # Update options saat preset berubah
-        self.preset_combo.currentTextChanged.connect(self._update_label_options)  # Update label options
+
+        self.preset_combo.currentTextChanged.connect(set_options)
+        self.preset_combo.currentTextChanged.connect(self._update_label_options)
         top_control_layout.addWidget(preset_group)
-        
-        # === Group Box untuk Options (Binary dan Split Screen) ===
+
+        # === Group Box untuk Options ===
         options_group = QGroupBox("Option:")
         options_layout = QVBoxLayout(options_group)
-        
-        # Checkbox untuk binary color mode (convert image ke hitam putih)
-        self.cb_edge = QCheckBox("BINARY COLOR")  # Checkbox untuk mode binary (grayscale threshold)
-        # Checkbox untuk split screen mode (tampilkan binary dan original)
-        self.cb_split = QCheckBox("SHOW SPLIT SCREEN")  # Checkbox untuk split screen mode
-        
-        option_change = set_options  # Handler untuk perubahan option
-        
-        # Connect checkbox changes ke set_options
-        self.cb_edge.toggled.connect(option_change)  # Trigger set_options saat binary mode berubah
-        self.cb_split.toggled.connect(option_change)  # Trigger set_options saat split mode berubah
 
-        # Tambah checkboxes ke layout
+        self.cb_edge = QCheckBox("BINARY COLOR")
+        self.cb_split = QCheckBox("SHOW SPLIT SCREEN")
+
+        option_change = set_options
+
+        self.cb_edge.toggled.connect(option_change)
+        self.cb_split.toggled.connect(option_change)
+
         options_layout.addWidget(self.cb_edge)
         options_layout.addWidget(self.cb_split)
         top_control_layout.addWidget(options_group)
-        
+
         layout.addWidget(top_control_widget)
-        
+
         # === Camera Status Label ===
-        self.camera_label = QLabel("Camera: Not Selected")  # Label untuk tampilkan status kamera
+        self.camera_label = QLabel("Camera: Not Selected")
         self.camera_label.setFont(QFont("Arial", 9))
         self.camera_label.setStyleSheet("color: blue;")
         layout.addWidget(self.camera_label)
 
         # === Label Selection ===
-        jis_type_label = QLabel("Select Label:")  # Label instruksi
+        jis_type_label = QLabel("Select Label:")
         jis_type_label.setFont(QFont("Arial", 10, QFont.Bold))
         layout.addWidget(jis_type_label)
-        
-        # Combo box untuk pilih label/type (JIS atau DIN)
+
         self.jis_type_combo = QComboBox()
-        self.jis_type_combo.addItems(JIS_TYPES)  # Default ke JIS_TYPES
-        
-        # Set combo box agar editable (user bisa ketik manual)
+        self.jis_type_combo.addItems(JIS_TYPES)
+
         self.jis_type_combo.setEditable(True)
-        self.jis_type_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)  # Tidak allow insert item baru
-        self.jis_type_combo.setCompleter(QCompleter(self.jis_type_combo.model()))  # Enable autocomplete
-        self.jis_type_combo.currentTextChanged.connect(self.on_jis_type_changed)  # Connect ke handler
+        self.jis_type_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.jis_type_combo.setCompleter(QCompleter(self.jis_type_combo.model()))
+        self.jis_type_combo.currentTextChanged.connect(self.on_jis_type_changed)
         layout.addWidget(self.jis_type_combo)
-        
-        # Label untuk tampilkan label yang sedang dipilih
+
+        # MODIFIED: Label yang dipilih (tetap ada untuk info)
         self.selected_type_label = QLabel("No Type Selected - Pilih Label untuk memulai")
         self.selected_type_label.setFont(QFont("Arial", 9))
         self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: bold;")
-        self.selected_type_label.setWordWrap(True)  # Allow text wrapping
+        self.selected_type_label.setWordWrap(True)
         layout.addWidget(self.selected_type_label)
 
         # === Camera Control Buttons (START dan STOP) ===
@@ -310,48 +342,168 @@ class MainWindow(QMainWindow):
         camera_btn_layout.setContentsMargins(0, 0, 0, 0)
         camera_btn_layout.setSpacing(5)
 
-        # Button START untuk mulai detection
         self.btn_start = QPushButton("START")
         self.btn_start.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; height: 35px;")
-        self.btn_start.clicked.connect(self.start_detection)  # Connect ke start_detection function
-        
-        # Button STOP untuk stop detection
+        self.btn_start.clicked.connect(self.start_detection)
+
         self.btn_stop = QPushButton("STOP")
         self.btn_stop.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; height: 35px;")
-        self.btn_stop.clicked.connect(self.stop_detection)  # Connect ke stop_detection function
-        self.btn_stop.setEnabled(False)  # Disabled by default
+        self.btn_stop.clicked.connect(self.stop_detection)
+        self.btn_stop.setEnabled(False)
 
         camera_btn_layout.addWidget(self.btn_start)
         camera_btn_layout.addWidget(self.btn_stop)
         layout.addWidget(camera_btn_container)
-        
+
         # === Button untuk Scan dari File ===
         self.btn_file = QPushButton("SCAN FROM FILE")
         self.btn_file.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; height: 30px;")
-        self.btn_file.clicked.connect(self.open_file_scan_dialog)  # Connect ke file scan dialog
+        self.btn_file.clicked.connect(self.open_file_scan_dialog)
         layout.addWidget(self.btn_file)
-        
+
         # === Container untuk Success Popup ===
         self.success_container = QWidget()
         self.success_layout = QVBoxLayout(self.success_container)
-        self.success_container.setFixedHeight(50)  # Fixed height untuk popup
+        self.success_container.setFixedHeight(50)
         layout.addWidget(self.success_container)
-        
+
         # === Group Box untuk Detection Output (OCR Results) ===
         all_text_group = QGroupBox("Detection Output:")
         all_text_layout = QVBoxLayout(all_text_group)
-        
-        # Tree widget untuk tampilkan semua teks yang terdeteksi OCR
+
         self.all_text_tree = QTreeWidget()
-        self.all_text_tree.setHeaderLabels(["Element Text"])  # Header kolom
-        self.all_text_tree.header().setVisible(False)  # Hide header
+        self.all_text_tree.setHeaderLabels(["Element Text"])
+        self.all_text_tree.header().setVisible(False)
         self.all_text_tree.setStyleSheet("font-size: 9pt; background-color: #f9f9f9;")
-        self.all_text_tree.setMinimumHeight(150)  # Minimum height
+        self.all_text_tree.setMinimumHeight(150)
         all_text_layout.addWidget(self.all_text_tree)
-        
-        layout.addWidget(all_text_group, 2)  # Stretch factor 2
+
+        layout.addWidget(all_text_group, 2)
+
+        # --- DIPINDAHKAN KE SINI ---
+        # Container statistik sekarang berada di paling bawah panel kiri
+        self._create_statistics_container(layout)
 
         return frame
+    
+    def _create_statistics_container(self, parent_layout):
+        """
+        NEW METHOD: Buat container untuk statistik seperti gambar
+        Tujuan: Menampilkan statistik dalam box-box terpisah (Label, Total, OK, NOT OK)
+        """
+        stats_container = QWidget()
+        stats_layout = QVBoxLayout(stats_container)
+        stats_layout.setContentsMargins(0, 5, 0, 5)
+        stats_layout.setSpacing(5)
+
+        # Box 1: Label yang sedang dipilih (TOP BOX)
+        self.label_box = QFrame()
+        self.label_box.setFrameShape(QFrame.Box)
+        self.label_box.setStyleSheet("""
+            QFrame {
+                border: 1px solid #800000;
+                background-color: #FFFFFF;
+                border-radius: 2px;
+            }
+        """)
+        label_box_layout = QVBoxLayout(self.label_box)
+        label_box_layout.setContentsMargins(8, 8, 8, 8)
+
+        self.label_display = QLabel("Label:")
+        self.label_display.setFont(QFont("Arial", 10, QFont.Bold))
+        self.label_display.setAlignment(Qt.AlignCenter)
+        self.label_display.setStyleSheet("border: none; color: #000000;")
+        label_box_layout.addWidget(self.label_display)
+
+        # Box 2: Total Deteksi (MIDDLE BOX)
+        self.total_box = QFrame()
+        self.total_box.setFrameShape(QFrame.Box)
+        self.total_box.setStyleSheet("""
+            QFrame {
+                border: 1px solid #800000;
+                background-color: #FFFFFF;
+                border-radius: 2px;
+            }
+        """)
+        total_box_layout = QVBoxLayout(self.total_box)
+        total_box_layout.setContentsMargins(8, 8, 8, 8)
+
+        self.total_display = QLabel("TOTAL\n0")
+        self.total_display.setFont(QFont("Arial", 10, QFont.Bold))
+        self.total_display.setAlignment(Qt.AlignCenter)
+        self.total_display.setStyleSheet("border: none; color: #000000;")
+        total_box_layout.addWidget(self.total_display)
+
+        # Box 3 & 4: OK dan NOT OK (BOTTOM ROW dengan 2 BOX)
+        bottom_row = QWidget()
+        bottom_layout = QHBoxLayout(bottom_row)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(5)
+
+        # Box OK (LEFT)
+        self.ok_box = QFrame()
+        self.ok_box.setFrameShape(QFrame.Box)
+        self.ok_box.setStyleSheet("""
+            QFrame {
+                border: 1px solid #800000;
+                background-color: #FFFFFF;
+                border-radius: 2px;
+            }
+        """)
+        ok_box_layout = QVBoxLayout(self.ok_box)
+        ok_box_layout.setContentsMargins(8, 8, 8, 8)
+
+        self.ok_display = QLabel("OK\n0")
+        self.ok_display.setFont(QFont("Arial", 10, QFont.Bold))
+        self.ok_display.setAlignment(Qt.AlignCenter)
+        self.ok_display.setStyleSheet("border: none; color: #000000;")
+        ok_box_layout.addWidget(self.ok_display)
+
+        # Box NOT OK (RIGHT)
+        self.not_ok_box = QFrame()
+        self.not_ok_box.setFrameShape(QFrame.Box)
+        self.not_ok_box.setStyleSheet("""
+            QFrame {
+                border: 1px solid #800000;
+                background-color: #FFFFFF;
+                border-radius: 2px;
+            }
+        """)
+        not_ok_box_layout = QVBoxLayout(self.not_ok_box)
+        not_ok_box_layout.setContentsMargins(8, 8, 8, 8)
+
+        self.not_ok_display = QLabel("NOT OK\n0")
+        self.not_ok_display.setFont(QFont("Arial", 10, QFont.Bold))
+        self.not_ok_display.setAlignment(Qt.AlignCenter)
+        self.not_ok_display.setStyleSheet("border: none; color: #000000;")
+        not_ok_box_layout.addWidget(self.not_ok_display)
+
+        # Add OK dan NOT OK ke bottom row
+        bottom_layout.addWidget(self.ok_box)
+        bottom_layout.addWidget(self.not_ok_box)
+
+        # Add semua box ke stats container
+        stats_layout.addWidget(self.label_box)
+        stats_layout.addWidget(self.total_box)
+        stats_layout.addWidget(bottom_row)
+
+        # Add stats container ke parent layout
+        parent_layout.addWidget(stats_container)
+
+
+# ========== PERUBAHAN 4: TAMBAH Method Baru update_statistics_display() ==========
+# LOKASI: Tambahkan method ini SETELAH _create_statistics_container()
+
+    def update_statistics_display(self, label_text, total_count, ok_count, not_ok_count):
+        """
+        NEW METHOD: Update tampilan statistik di container boxes
+        Tujuan: Mengupdate nilai di semua box statistik
+        Parameter: label_text, total_count, ok_count, not_ok_count
+        """
+        self.label_display.setText(f"Label: {label_text}")
+        self.total_display.setText(f"TOTAL\n{total_count}")
+        self.ok_display.setText(f"OK\n{ok_count}")
+        self.not_ok_display.setText(f"NOT OK\n{not_ok_count}")
 
     def update_all_text_display(self, text_list):
         """
@@ -396,23 +548,22 @@ class MainWindow(QMainWindow):
         #Fungsi: Validasi label, update display label, dan set target di logic
         #Parameter: text (str) - Text dari combo box yang dipilih/diketik user
 
-        current_preset = self.preset_combo.currentText() #Get preset aktif
-        
-        # Check apakah label valid
+        current_preset = self.preset_combo.currentText()
+
         if not self._is_valid_label(text, current_preset):
-            # Label tidak valid (kosong, placeholder, atau tidak ada dalam daftar)
             self.selected_type_label.setText("No Type Selected - Pilih Label untuk memulai")
             self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: bold;")
+            # NEW: Reset statistics display
+            self.update_statistics_display(". . .", 0, 0, 0)
             if self.logic:
-                self.logic.set_target_label("")  # Clear target label di logic
+                self.logic.set_target_label("")
         else:
-            # Label valid
             self.selected_type_label.setText(f"Selected: {text}")
             self.selected_type_label.setStyleSheet("color: green; font-weight: bold;")
             if self.logic:
-                self.logic.set_target_label(text)  # Set target label di logic
-        
-        self.update_code_display()  # Update tampilan data
+                self.logic.set_target_label(text)
+
+        self.update_code_display()
 
 
 
@@ -619,7 +770,7 @@ class MainWindow(QMainWindow):
         #Update tampilan data kode yang terdeteksi.
         if not self.logic:
             return
-            
+        
         self.code_tree.clear()
         
         selected_session = self.jis_type_combo.currentText()
@@ -628,6 +779,8 @@ class MainWindow(QMainWindow):
         if show_nothing:
             self.selected_type_label.setText("No Type Selected - Pilih label untuk memulai")
             self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: bold;")
+            # NEW: Reset statistics
+            self.update_statistics_display(". . .", 0, 0, 0)
             return
         
         displayed_count = 0
@@ -655,13 +808,12 @@ class MainWindow(QMainWindow):
                 ok_count += 1
             elif status_str == "Not OK":
                 not_ok_count += 1
-                # Set background merah dan text putih untuk setiap kolom
                 for col in range(item.columnCount()):
-                    item.setBackground(col, QColor(255, 0, 0))  # Red background
-                    item.setForeground(col, QColor(255, 255, 255))  # White text
+                    item.setBackground(col, QColor(255, 0, 0))
+                    item.setForeground(col, QColor(255, 255, 255))
         
-        status_text = f"Total: {displayed_count} | OK: {ok_count} | Not OK: {not_ok_count}"
-        self.selected_type_label.setText(f"Label: {selected_session} | {status_text}")
+        # MODIFIED: Update statistics boxes
+        self.update_statistics_display(selected_session, displayed_count, ok_count, not_ok_count)
 
     def view_selected_image(self, item, column):
         #Handler untuk membuka gambar double-click.
