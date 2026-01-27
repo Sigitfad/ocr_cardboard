@@ -11,8 +11,8 @@ from PIL import Image  # Image processing library | Library untuk proses image (
 # Tujuan: Define basic application information dan window dimensions
 APP_NAME = "QC_GS-Battery"  # Nama aplikasi utama | Tampil di window title dan UI
 APP_VERSION = "1.0.0"  # Versi aplikasi | Untuk tracking version updates
-WINDOW_WIDTH = 1024  # Lebar window utama (pixels) | Ukuran default window saat dibuka
-WINDOW_HEIGHT = 768  # Tinggi window utama (pixels) | Ukuran default window saat dibuka
+WINDOW_WIDTH = 1293  # Lebar window utama (pixels) | Ukuran default window saat dibuka
+WINDOW_HEIGHT = 720  # Tinggi window utama (pixels) | Ukuran default window saat dibuka
 CONTROL_PANEL_WIDTH = 280  # Lebar panel kontrol sebelah kiri (pixels) | Tempat buttons dan controls
 RIGHT_PANEL_WIDTH = 280  # Lebar panel kanan untuk data display (pixels) | Tempat tabel dan export
 

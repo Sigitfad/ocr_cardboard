@@ -8,7 +8,7 @@ from PySide6.QtCore import (
     Qt, QTimer, Signal, QThread, QDateTime, QDate, QLocale, QMetaObject
 )  # PySide6 core | Core signal/slot dan threading
 from PySide6.QtGui import (
-    QPixmap, QImage, QFont, QColor, QKeyEvent
+    QPixmap, QImage, QFont, QColor, QKeyEvent, QIcon
 )  # PySide6 GUI utilities | Untuk image handling dan styling
 from config import (
     APP_NAME, WINDOW_WIDTH, WINDOW_HEIGHT, CONTROL_PANEL_WIDTH, RIGHT_PANEL_WIDTH,
@@ -68,7 +68,107 @@ class MainWindow(QMainWindow):
         """
         super().__init__()
         self.setWindowTitle(APP_NAME)  # Set judul window dari config
+        self.setWindowIcon(QIcon("logo_gs.png"))  # Set icon aplikasi
+        
+        # FIXED: Set minimum size dulu sebelum setGeometry untuk hindari warning
+        # Gunakan ukuran yang sedikit lebih kecil untuk fleksibilitas
+        self.setMinimumSize(1200, 650)  # Minimum size yang lebih fleksibel
+        
+        # Set initial geometry
         self.setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT)  # Set ukuran dan posisi window
+        
+        # === BOOTSTRAP-STYLE BUTTON STYLES ===
+        # Modern, clean button styles inspired by Bootstrap framework
+        self.BUTTON_STYLES = {
+            'success': """
+                QPushButton {
+                    background-color: #28a745;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    min-height: 32px;
+                }
+                QPushButton:hover {
+                    background-color: #218838;
+                }
+                QPushButton:pressed {
+                    background-color: #1e7e34;
+                }
+                QPushButton:disabled {
+                    background-color: #94d3a2;
+                    color: #e0e0e0;
+                }
+            """,
+            'danger': """
+                QPushButton {
+                    background-color: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    min-height: 32px;
+                }
+                QPushButton:hover {
+                    background-color: #c82333;
+                }
+                QPushButton:pressed {
+                    background-color: #bd2130;
+                }
+                QPushButton:disabled {
+                    background-color: #f1a8b0;
+                    color: #e0e0e0;
+                }
+            """,
+            'primary': """
+                QPushButton {
+                    background-color: #007bff;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    min-height: 32px;
+                }
+                QPushButton:hover {
+                    background-color: #0069d9;
+                }
+                QPushButton:pressed {
+                    background-color: #0062cc;
+                }
+                QPushButton:disabled {
+                    background-color: #80bdff;
+                    color: #e0e0e0;
+                }
+            """,
+            'warning': """
+                QPushButton {
+                    background-color: #ffc107;
+                    color: #212529;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    min-height: 32px;
+                }
+                QPushButton:hover {
+                    background-color: #e0a800;
+                }
+                QPushButton:pressed {
+                    background-color: #d39e00;
+                }
+                QPushButton:disabled {
+                    background-color: #ffe082;
+                    color: #9e9e9e;
+                }
+            """
+        }
         
         self.is_fullscreen = False
         self.normal_geometry = None
@@ -147,6 +247,9 @@ class MainWindow(QMainWindow):
             # Keluar dari fullscreen - kembali ke mode normal
             self.showNormal()
             
+            # FIXED: Restore minimum size (konsisten dengan __init__)
+            self.setMinimumSize(1200, 650)
+            
             # Restore ukuran dan posisi window sebelumnya
             if self.normal_geometry:
                 self.setGeometry(self.normal_geometry)
@@ -158,6 +261,9 @@ class MainWindow(QMainWindow):
             self.normal_geometry = self.geometry()
             
             # Set window menjadi fullscreen
+            # FIXED: Clear minimum size untuk avoid geometry warning
+            self.setMinimumSize(0, 0)
+            
             self.showFullScreen()
             
             self.is_fullscreen = True
@@ -265,11 +371,25 @@ class MainWindow(QMainWindow):
         top_control_layout.setContentsMargins(0, 0, 0, 0)
 
         # === Group Box untuk Preset Selection ===
-        preset_group = QGroupBox("Tipe:")
+        preset_group = QGroupBox("Tipe")
+        preset_group.setFont(QFont("Arial", 10, QFont.Bold))
         preset_layout = QVBoxLayout(preset_group)
         preset_layout.setAlignment(Qt.AlignTop)
         preset_layout.setContentsMargins(8, 12, 8, 8)
         preset_layout.setSpacing(6)
+        preset_group.setStyleSheet("""
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 30px;
+                padding: 2px 0px;
+            }
+        """)
 
         self.preset_combo = QComboBox()
         self.preset_combo.addItems(["JIS", "DIN"])
@@ -292,8 +412,22 @@ class MainWindow(QMainWindow):
         top_control_layout.addWidget(preset_group)
 
         # === Group Box untuk Options ===
-        options_group = QGroupBox("Option:")
+        options_group = QGroupBox("Option")
+        options_group.setFont(QFont("Arial", 10, QFont.Bold))
         options_layout = QVBoxLayout(options_group)
+        options_group.setStyleSheet("""
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 50px;
+                padding: 2px 0px;
+            }
+        """)
 
         self.cb_edge = QCheckBox("BINARY COLOR")
         self.cb_split = QCheckBox("SHOW SPLIT SCREEN")
@@ -315,49 +449,72 @@ class MainWindow(QMainWindow):
         self.camera_label.setStyleSheet("color: blue;")
         layout.addWidget(self.camera_label)
 
-        # === Label Selection ===
-        jis_type_label = QLabel("Select Label:")
-        jis_type_label.setFont(QFont("Arial", 10, QFont.Bold))
-        layout.addWidget(jis_type_label)
-
+        # === Label Selection dengan GroupBox ===
+        # Buat GroupBox dengan border dan title "Select Label :"
+        label_selection_group = QGroupBox("Select Label :")
+        label_selection_group.setFont(QFont("Arial", 9))
+        label_selection_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #000000;
+                border-radius: 5px;
+                margin-top: 8px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+                color: #000000;
+            }
+        """)
+        
+        # Layout untuk isi GroupBox
+        label_group_layout = QVBoxLayout(label_selection_group)
+        label_group_layout.setContentsMargins(8, 5, 8, 8)
+        label_group_layout.setSpacing(3)
+        
+        # ComboBox untuk pilih label
         self.jis_type_combo = QComboBox()
         self.jis_type_combo.addItems(JIS_TYPES)
-
         self.jis_type_combo.setEditable(True)
         self.jis_type_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.jis_type_combo.setCompleter(QCompleter(self.jis_type_combo.model()))
         self.jis_type_combo.currentTextChanged.connect(self.on_jis_type_changed)
-        layout.addWidget(self.jis_type_combo)
-
-        # MODIFIED: Label yang dipilih (tetap ada untuk info)
-        self.selected_type_label = QLabel("No Type Selected - Pilih Label untuk memulai")
+        self.jis_type_combo.setMinimumHeight(35)
+        self.jis_type_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                padding: 5px 8px;
+                font-size: 13px;
+                background-color: white;
+            }
+        """)
+        label_group_layout.addWidget(self.jis_type_combo)
+        
+        # Label warning "Pilih Label Terlebih Dahulu" dengan warna orange
+        self.selected_type_label = QLabel("Pilih Label Terlebih Dahulu")
         self.selected_type_label.setFont(QFont("Arial", 9))
-        self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: bold;")
+        self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: normal; border: none;")
+        self.selected_type_label.setAlignment(Qt.AlignCenter)
         self.selected_type_label.setWordWrap(True)
-        layout.addWidget(self.selected_type_label)
+        label_group_layout.addWidget(self.selected_type_label)
+        
+        # Tambahkan GroupBox ke layout utama
+        layout.addWidget(label_selection_group)
 
-        # === Camera Control Buttons (START dan STOP) ===
-        camera_btn_container = QWidget()
-        camera_btn_layout = QHBoxLayout(camera_btn_container)
-        camera_btn_layout.setContentsMargins(0, 0, 0, 0)
-        camera_btn_layout.setSpacing(5)
-
-        self.btn_start = QPushButton("START")
-        self.btn_start.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; height: 35px;")
-        self.btn_start.clicked.connect(self.start_detection)
-
-        self.btn_stop = QPushButton("STOP")
-        self.btn_stop.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; height: 35px;")
-        self.btn_stop.clicked.connect(self.stop_detection)
-        self.btn_stop.setEnabled(False)
-
-        camera_btn_layout.addWidget(self.btn_start)
-        camera_btn_layout.addWidget(self.btn_stop)
-        layout.addWidget(camera_btn_container)
+        # === Camera Control Button (START/STOP Toggle) ===
+        # MODIFIED: Menggabungkan tombol START dan STOP menjadi satu tombol toggle dengan Bootstrap style
+        self.btn_camera_toggle = QPushButton("START")
+        self.btn_camera_toggle.setStyleSheet(self.BUTTON_STYLES['success'])
+        self.btn_camera_toggle.clicked.connect(self.toggle_camera)
+        self.is_camera_running = False  # Flag untuk tracking status kamera
+        
+        layout.addWidget(self.btn_camera_toggle)
 
         # === Button untuk Scan dari File ===
         self.btn_file = QPushButton("SCAN FROM FILE")
-        self.btn_file.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; height: 30px;")
+        self.btn_file.setStyleSheet(self.BUTTON_STYLES['primary'])
         self.btn_file.clicked.connect(self.open_file_scan_dialog)
         layout.addWidget(self.btn_file)
 
@@ -369,12 +526,53 @@ class MainWindow(QMainWindow):
 
         # === Group Box untuk Detection Output (OCR Results) ===
         all_text_group = QGroupBox("Detection Output:")
+        all_text_group.setFont(QFont("Arial", 9, QFont.Bold))
         all_text_layout = QVBoxLayout(all_text_group)
+        all_text_group.setStyleSheet("""
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 12px;
+                padding-top: 8px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 70px;
+                padding: 5px 3px;
+            }
+        """)
 
         self.all_text_tree = QTreeWidget()
         self.all_text_tree.setHeaderLabels(["Element Text"])
         self.all_text_tree.header().setVisible(False)
-        self.all_text_tree.setStyleSheet("font-size: 9pt; background-color: #f9f9f9;")
+        self.all_text_tree.setStyleSheet("""
+            QTreeWidget {
+                font-size: 9pt;
+                background-color: #f9f9f9;
+                border: 1px solid #ddd;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #f0f0f0;
+                width: 8px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #c0c0c0;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #a0a0a0;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
         self.all_text_tree.setMinimumHeight(150)
         all_text_layout.addWidget(self.all_text_tree)
 
@@ -390,104 +588,145 @@ class MainWindow(QMainWindow):
         """
         NEW METHOD: Buat container untuk statistik seperti gambar
         Tujuan: Menampilkan statistik dalam box-box terpisah (Label, Total, OK, NOT OK)
+        Fungsi: Membuat 4 box statistik dengan QGroupBox styling seperti Detection Output
+        Parameter: parent_layout - Layout parent dimana container ini akan ditambahkan
         """
+        # Buat widget container utama untuk menampung semua box statistik
         stats_container = QWidget()
         stats_layout = QVBoxLayout(stats_container)
-        stats_layout.setContentsMargins(0, 5, 0, 5)
-        stats_layout.setSpacing(5)
+        stats_layout.setContentsMargins(0, 2, 0, 2)  # Margin luar container
+        stats_layout.setSpacing(5)  # Jarak antar box
 
-        # Box 1: Label yang sedang dipilih (TOP BOX)
-        self.label_box = QFrame()
-        self.label_box.setFrameShape(QFrame.Box)
+        # ===== Box 1: Label yang sedang dipilih (TOP BOX) =====
+        # Menggunakan QGroupBox dengan title "Label:" di border atas
+        self.label_box = QGroupBox("LABEL")
+        self.label_box.setFont(QFont("Arial", 9, QFont.Bold))
         self.label_box.setStyleSheet("""
-            QFrame {
-                border: 1px solid #800000;
-                background-color: #FFFFFF;
-                border-radius: 2px;
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 105px;
+                padding: 2px 2px;
             }
         """)
+        # Layout untuk konten di dalam label box
         label_box_layout = QVBoxLayout(self.label_box)
-        label_box_layout.setContentsMargins(8, 8, 8, 8)
+        label_box_layout.setContentsMargins(8, 12, 8, 8)  # Padding dalam box (12px atas untuk beri ruang title)
 
-        self.label_display = QLabel("Label:")
+        # Label untuk menampilkan nama label yang dipilih
+        self.label_display = QLabel(". . .")
         self.label_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.label_display.setAlignment(Qt.AlignCenter)
         self.label_display.setStyleSheet("border: none; color: #000000;")
         label_box_layout.addWidget(self.label_display)
 
-        # Box 2: Total Deteksi (MIDDLE BOX)
-        self.total_box = QFrame()
-        self.total_box.setFrameShape(QFrame.Box)
+        # ===== Box 2: Total Deteksi (MIDDLE BOX) =====
+        # Menggunakan QGroupBox dengan title "TOTAL:" di border atas
+        self.total_box = QGroupBox("TOTAL")
+        self.total_box.setFont(QFont("Arial", 9, QFont.Bold))
         self.total_box.setStyleSheet("""
-            QFrame {
-                border: 1px solid #800000;
-                background-color: #FFFFFF;
-                border-radius: 2px;
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 105px;
+                padding: 2px 2px;
             }
         """)
+        # Layout untuk konten di dalam total box
         total_box_layout = QVBoxLayout(self.total_box)
-        total_box_layout.setContentsMargins(8, 8, 8, 8)
+        total_box_layout.setContentsMargins(8, 12, 8, 8)  # Padding dalam box
 
-        self.total_display = QLabel("TOTAL\n0")
+        # Label untuk menampilkan jumlah total deteksi
+        self.total_display = QLabel("0")
         self.total_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.total_display.setAlignment(Qt.AlignCenter)
         self.total_display.setStyleSheet("border: none; color: #000000;")
         total_box_layout.addWidget(self.total_display)
 
-        # Box 3 & 4: OK dan NOT OK (BOTTOM ROW dengan 2 BOX)
+        # ===== Box 3 & 4: OK dan NOT OK (BOTTOM ROW dengan 2 BOX) =====
+        # Buat widget container untuk row bawah (menampung 2 box berdampingan)
         bottom_row = QWidget()
         bottom_layout = QHBoxLayout(bottom_row)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_layout.setSpacing(5)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)  # Hapus margin
+        bottom_layout.setSpacing(5)  # Jarak antara box OK dan NOT OK
 
-        # Box OK (LEFT)
-        self.ok_box = QFrame()
-        self.ok_box.setFrameShape(QFrame.Box)
+        # ===== Box OK (LEFT) =====
+        # Menggunakan QGroupBox dengan title "OK:" di border atas
+        self.ok_box = QGroupBox("OK")
+        self.ok_box.setFont(QFont("Arial", 9, QFont.Bold))
         self.ok_box.setStyleSheet("""
-            QFrame {
-                border: 1px solid #800000;
-                background-color: #FFFFFF;
-                border-radius: 2px;
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 50px;
+                padding: 2px 2px;
             }
         """)
+        # Layout untuk konten di dalam OK box
         ok_box_layout = QVBoxLayout(self.ok_box)
-        ok_box_layout.setContentsMargins(8, 8, 8, 8)
+        ok_box_layout.setContentsMargins(8, 12, 8, 8)  # Padding dalam box
 
-        self.ok_display = QLabel("OK\n0")
+        # Label untuk menampilkan jumlah deteksi OK
+        self.ok_display = QLabel("0")
         self.ok_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.ok_display.setAlignment(Qt.AlignCenter)
         self.ok_display.setStyleSheet("border: none; color: #000000;")
         ok_box_layout.addWidget(self.ok_display)
 
-        # Box NOT OK (RIGHT)
-        self.not_ok_box = QFrame()
-        self.not_ok_box.setFrameShape(QFrame.Box)
+        # ===== Box NOT OK (RIGHT) =====
+        # Menggunakan QGroupBox dengan title "NOT OK:" di border atas
+        self.not_ok_box = QGroupBox("NOT OK")
+        self.not_ok_box.setFont(QFont("Arial", 9, QFont.Bold))
         self.not_ok_box.setStyleSheet("""
-            QFrame {
-                border: 1px solid #800000;
-                background-color: #FFFFFF;
-                border-radius: 2px;
+            QGroupBox {
+                background-color: #F0F0F0;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 35px;
+                padding: 2px 2px;
             }
         """)
+        # Layout untuk konten di dalam NOT OK box
         not_ok_box_layout = QVBoxLayout(self.not_ok_box)
-        not_ok_box_layout.setContentsMargins(8, 8, 8, 8)
+        not_ok_box_layout.setContentsMargins(8, 12, 8, 8)  # Padding dalam box
 
-        self.not_ok_display = QLabel("NOT OK\n0")
+        # Label untuk menampilkan jumlah deteksi NOT OK
+        self.not_ok_display = QLabel("0")
         self.not_ok_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.not_ok_display.setAlignment(Qt.AlignCenter)
         self.not_ok_display.setStyleSheet("border: none; color: #000000;")
         not_ok_box_layout.addWidget(self.not_ok_display)
 
-        # Add OK dan NOT OK ke bottom row
+        # Tambahkan box OK dan NOT OK ke bottom row (horizontal)
         bottom_layout.addWidget(self.ok_box)
         bottom_layout.addWidget(self.not_ok_box)
 
-        # Add semua box ke stats container
+        # Tambahkan semua box ke stats container (vertical)
+        # Urutan dari atas ke bawah: Label -> Total -> (OK | NOT OK)
         stats_layout.addWidget(self.label_box)
         stats_layout.addWidget(self.total_box)
         stats_layout.addWidget(bottom_row)
 
-        # Add stats container ke parent layout
+        # Tambahkan stats container ke parent layout (main control panel)
         parent_layout.addWidget(stats_container)
 
 
@@ -496,14 +735,13 @@ class MainWindow(QMainWindow):
 
     def update_statistics_display(self, label_text, total_count, ok_count, not_ok_count):
         """
-        NEW METHOD: Update tampilan statistik di container boxes
-        Tujuan: Mengupdate nilai di semua box statistik
-        Parameter: label_text, total_count, ok_count, not_ok_count
+        Update tampilan statistik di container boxes
         """
-        self.label_display.setText(f"Label: {label_text}")
-        self.total_display.setText(f"TOTAL\n{total_count}")
-        self.ok_display.setText(f"OK\n{ok_count}")
-        self.not_ok_display.setText(f"NOT OK\n{not_ok_count}")
+        self.label_display.setText(str(label_text))
+        self.total_display.setText(str(total_count))
+        self.ok_display.setText(str(ok_count))
+        self.not_ok_display.setText(str(not_ok_count))
+
 
     def update_all_text_display(self, text_list):
         """
@@ -551,15 +789,16 @@ class MainWindow(QMainWindow):
         current_preset = self.preset_combo.currentText()
 
         if not self._is_valid_label(text, current_preset):
-            self.selected_type_label.setText("No Type Selected - Pilih Label untuk memulai")
-            self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: bold;")
+            self.selected_type_label.setText("Pilih Label Terlebih Dahulu")
+            self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: normal; border: none;")
             # NEW: Reset statistics display
             self.update_statistics_display(". . .", 0, 0, 0)
             if self.logic:
                 self.logic.set_target_label("")
         else:
+            # Saat label valid dipilih, tampilkan "Selected: ..."
             self.selected_type_label.setText(f"Selected: {text}")
-            self.selected_type_label.setStyleSheet("color: green; font-weight: bold;")
+            self.selected_type_label.setStyleSheet("color: #28a745; font-weight: bold; border: none;")
             if self.logic:
                 self.logic.set_target_label(text)
 
@@ -579,7 +818,7 @@ class MainWindow(QMainWindow):
         
         # === Button untuk Export Data ===
         self.btn_export = QPushButton("EXPORT DATA")
-        self.btn_export.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; height: 30px;")
+        self.btn_export.setStyleSheet(self.BUTTON_STYLES['primary'])
         self.btn_export.clicked.connect(self.open_export_dialog)  # Connect ke export dialog
         layout.addWidget(self.btn_export)
         
@@ -598,6 +837,37 @@ class MainWindow(QMainWindow):
         self.code_tree.setHeaderLabels(["Waktu", "Label", "Status", "Path Gambar", "ID"])  # Set headers
         self.code_tree.setColumnCount(5)  # 5 kolom
         self.code_tree.header().setDefaultAlignment(Qt.AlignCenter)  # Center alignment header
+        
+        # PERBAIKAN: Disable horizontal scroll dan pertipis vertical scrollbar
+        self.code_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)  # Nonaktifkan scroll horizontal
+        self.code_tree.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # Scroll vertical hanya saat perlu
+        
+        # Set stylesheet untuk pertipis scrollbar
+        self.code_tree.setStyleSheet("""
+            QTreeWidget {
+                border: 1px solid #ddd;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #f0f0f0;
+                width: 8px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #c0c0c0;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #a0a0a0;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
         
         # Set column widths dan resize modes
         self.code_tree.setColumnWidth(0, 80)  # Column Waktu
@@ -618,11 +888,45 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.code_tree)
         
+        # === Container untuk Button Actions (CLEAR dan REFRESH) ===
+        action_buttons_container = QWidget()
+        action_buttons_layout = QHBoxLayout(action_buttons_container)
+        action_buttons_layout.setContentsMargins(0, 0, 0, 0)
+        action_buttons_layout.setSpacing(8)
+        
         # === Button untuk Delete Selected Data ===
         self.btn_delete_selected = QPushButton("CLEAR")
-        self.btn_delete_selected.setStyleSheet("background-color: #Ff0000; color: white; font-weight: bold; height: 30px;")
+        self.btn_delete_selected.setStyleSheet(self.BUTTON_STYLES['danger'])
         self.btn_delete_selected.clicked.connect(self.delete_selected_codes)  # Connect ke delete function
-        layout.addWidget(self.btn_delete_selected)
+        action_buttons_layout.addWidget(self.btn_delete_selected, 3)  # Stretch factor 3 - ambil lebih banyak ruang
+        
+        # === Button untuk Refresh Data (Icon Only - Square) ===
+        self.btn_refresh = QPushButton("⭮")  # Unicode arrow symbol
+        self.btn_refresh.setStyleSheet("""
+            QPushButton {
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 16px;
+                font-weight: 500;
+                min-height: 32px;
+                max-width: 40px;
+                min-width: 40px;
+            }
+            QPushButton:hover {
+                background-color: #5a6268;
+            }
+            QPushButton:pressed {
+                background-color: #545b62;
+            }
+        """)
+        self.btn_refresh.setToolTip("Refresh Data Barang - Menyegarkan tampilan data jika ada delay")
+        self.btn_refresh.clicked.connect(self.refresh_data_display)  # Connect ke refresh function
+        action_buttons_layout.addWidget(self.btn_refresh, 0)  # Stretch factor 0 - ukuran tetap
+        
+        layout.addWidget(action_buttons_container)
         
         self.update_code_display()  # Initial populate data
 
@@ -637,22 +941,37 @@ class MainWindow(QMainWindow):
         self.btn_file.setText("SCAN FROM FILE")
         self.btn_file.setEnabled(True)
 
-    def _update_camera_button_styles(self, active_button):
-        #Mengatur warna tombol kamera
-        #Tujuan: Update styling button berdasarkan status (START/STOP)
-        #Fungsi: Ubah warna button untuk indicate button mana yang aktif
-        #Parameter: active_button (str) - "START" atau "STOP"
+    def refresh_data_display(self):
+        """
+        Refresh data dari database dan update tampilan Data Barang
+        Tujuan: Menyegarkan tampilan jika ada data yang delay atau belum muncul
+        Fungsi: Reload data dari database dan update tree view dengan efek blink HANYA pada data items (header tetap)
+        """
+        if not self.logic:
+            QMessageBox.warning(self, "Warning", "Logic belum diinisialisasi. Silakan mulai kamera terlebih dahulu.")
+            return
+        
+        try:
+            # Import fungsi load_existing_data dari database
+            from database import load_existing_data
+            
+            # PERBAIKAN: Hanya hapus items, JANGAN clear() agar header tidak hilang
+            # Hapus semua top level items (data) tanpa menghapus header
+            while self.code_tree.topLevelItemCount() > 0:
+                self.code_tree.takeTopLevelItem(0)
+            
+            # Reload data dari database untuk tanggal hari ini
+            self.logic.detected_codes = load_existing_data(self.logic.current_date)
+            
+            # Delay 100ms sebelum menampilkan data baru (efek blink)
+            QTimer.singleShot(100, lambda: self.update_code_display())
+            
+        except Exception as e:
+            # Jika ada error, langsung update display tanpa delay
+            self.update_code_display()
+            QMessageBox.critical(self, "Error Refresh", f"Gagal me-refresh data:\n{e}")
 
-        style_active = "background-color: #8B0000; color: white; font-weight: bold; height: 35px;"  # Red untuk aktif
-        style_inactive = "background-color: #4CAF50; color: white; font-weight: bold; height: 35px;"  # Green untuk inactive
 
-        if active_button == "START":
-            self.btn_start.setStyleSheet(style_active)
-            self.btn_stop.setStyleSheet(style_inactive)
-        else:
-            self.btn_stop.setStyleSheet(style_active)
-            self.btn_start.setStyleSheet(style_inactive)
-    
     def _lock_label_and_type_controls(self):
         """
         Nonaktifkan kontrol Label dan Tipe saat kamera START
@@ -671,8 +990,21 @@ class MainWindow(QMainWindow):
         self.preset_combo.setEnabled(True)
         self.jis_type_combo.setEnabled(True)
 
+    def toggle_camera(self):
+        """
+        Handler untuk tombol toggle kamera (START/STOP)
+        Tujuan: Toggle antara start dan stop kamera dengan satu tombol
+        Fungsi: Cek status kamera dan jalankan start atau stop detection
+        """
+        if not self.is_camera_running:
+            # Kamera sedang OFF, jalankan START
+            self.start_detection()
+        else:
+            # Kamera sedang ON, jalankan STOP
+            self.stop_detection()
+
     def start_detection(self):
-        #Handler untuk tombol START
+        #Handler untuk memulai detection (dipanggil dari toggle_camera)
         #Tujuan: Mulai camera detection dan OCR scanning
         #Fungsi: Validasi label, setup logic thread, start detection, update UI
 
@@ -690,10 +1022,10 @@ class MainWindow(QMainWindow):
             
         self._setup_logic_thread()  # Setup fresh logic thread
         
-        # Update button states
-        self.btn_start.setEnabled(False)
-        self.btn_stop.setEnabled(True)
-        self._update_camera_button_styles("START")
+        # Update button state dan style
+        self.is_camera_running = True
+        self.btn_camera_toggle.setText("STOP")
+        self.btn_camera_toggle.setStyleSheet(self.BUTTON_STYLES['danger'])  # Bootstrap danger (red) untuk aktif
         
         self._lock_label_and_type_controls()  # Lock preset dan label controls
 
@@ -715,10 +1047,14 @@ class MainWindow(QMainWindow):
         self._hide_success_popup()  # Hide success popup jika ada
 
     def stop_detection(self):
-        #Handler untuk tombol STOP.
-        self.btn_start.setEnabled(True)
-        self.btn_stop.setEnabled(False)
-        self._update_camera_button_styles("STOP")
+        #Handler untuk menghentikan detection (dipanggil dari toggle_camera)
+        #Tujuan: Stop camera detection dan OCR scanning
+        #Fungsi: Stop detection thread, update UI, unlock controls
+        
+        # Update button state dan style
+        self.is_camera_running = False
+        self.btn_camera_toggle.setText("START")
+        self.btn_camera_toggle.setStyleSheet(self.BUTTON_STYLES['success'])  # Bootstrap success (green) untuk inactive
         
         self._unlock_label_and_type_controls()
 
@@ -777,8 +1113,8 @@ class MainWindow(QMainWindow):
         show_nothing = (selected_session == "Select Label . . ." or not selected_session.strip())
         
         if show_nothing:
-            self.selected_type_label.setText("No Type Selected - Pilih label untuk memulai")
-            self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: bold;")
+            self.selected_type_label.setText("Pilih Label Terlebih Dahulu")
+            self.selected_type_label.setStyleSheet("color: #FF6600; font-weight: normal; border: none;")
             # NEW: Reset statistics
             self.update_statistics_display(". . .", 0, 0, 0)
             return
@@ -980,7 +1316,7 @@ class MainWindow(QMainWindow):
 
             try:
                 current_time = datetime.now()
-                range_key = dialog.export_range_var
+                range_key = dialog._export_range_value  # FIXED: Gunakan _export_range_value attribute
                 
                 if range_key == "All":
                     sql_filter = ""
@@ -1081,7 +1417,8 @@ class MainWindow(QMainWindow):
         #Thread untuk proses export data ke Excel.
         from export import execute_export
     
-        self.export_status_signal.emit("Exporting...", "#FF9800")
+        # Tidak perlu emit status signal karena bisa menyebabkan error
+        # User akan melihat hasil di message box
         
         if not self.logic:
              self.export_result_signal.emit("EXPORT_ERROR: Logic Object not found")
@@ -1094,28 +1431,28 @@ class MainWindow(QMainWindow):
     def _handle_export_result(self, result):
         #"""Handle hasil export dan tampilkan feedback kepada user.
         self.btn_export.setText("EXPORT DATA")
-        self.btn_export.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; height: 30px;")
+        self.btn_export.setStyleSheet(self.BUTTON_STYLES['primary'])
         
         if result == "NO_DATA":
             QMessageBox.information(self, "Info", "Tidak ada data yang ditemukan dalam rentang waktu atau filter yang dipilih.")
-            self._update_export_button_ui("Export Gagal!", "#f44336")
+            self._update_export_button_ui("Export Gagal!", "danger")
         elif result.startswith("EXPORT_ERROR:"):
             QMessageBox.critical(self, "Error Export", f"Gagal mengekspor data ke Excel:\n{result[13:]}")
-            self._update_export_button_ui("Export Gagal!", "#f44336")
+            self._update_export_button_ui("Export Gagal!", "danger")
         else:
             QMessageBox.information(self, "Sukses", f"Data berhasil diekspor ke:\n{result}")
-            self._update_export_button_ui("Export Berhasil!", "#4CAF50")
+            self._update_export_button_ui("Export Berhasil!", "success")
             
-    def _update_export_button_ui(self, text, bg_color):
+    def _update_export_button_ui(self, text, style_type):
         #Update styling dan teks export button untuk menunjukkan status.
         self.btn_export.setText(text)
-        self.btn_export.setStyleSheet(f"background-color: {bg_color}; color: white; font-weight: bold; height: 30px;")
+        self.btn_export.setStyleSheet(self.BUTTON_STYLES[style_type])
         QTimer.singleShot(3000, self._reset_export_button_ui)
 
     def _reset_export_button_ui(self):
         #Reset export button ke kondisi default.
         self.btn_export.setText("EXPORT DATA")
-        self.btn_export.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; height: 30px;")
+        self.btn_export.setStyleSheet(self.BUTTON_STYLES['primary'])
 
     def _update_label_options(self, preset):
         #Update daftar label/type sesuai preset yang dipilih.
