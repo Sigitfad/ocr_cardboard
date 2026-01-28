@@ -18,7 +18,7 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
     count = get_detection_count(logic.db_file if hasattr(logic, 'db_file') else None)
 
     if count == 0:
-        QMessageBox.information(parent, "Info", "Tidak ada data sama sekali di database untuk diekspor.")
+        QMessageBox.information(parent, "Info", "Tidak ada data !")
         return None
 
     # Buat dialog dengan ukuran COMPACT seperti di foto
@@ -80,6 +80,7 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
     
     # KOLOM KIRI: Date
     date_group = QGroupBox("Date")
+    date_group.setFont(QFont("Arial", 9, QFont.Bold))
     date_group.setStyleSheet(group_style)
     date_layout = QVBoxLayout(date_group)
     date_layout.setSpacing(4)
@@ -99,6 +100,7 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
     
     # KOLOM KANAN: Pilih Tipe dan Label
     preset_group = QGroupBox("Pilih Tipe dan Label")
+    preset_group.setFont(QFont("Arial", 9, QFont.Bold))
     preset_group.setStyleSheet(group_style)
     preset_layout = QVBoxLayout(preset_group)
     preset_layout.setSpacing(5)
@@ -198,6 +200,7 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
 
     # ===== ROW 2: Pilih Bulan (dengan checkbox di kiri) =====
     month_group = QGroupBox("Pilih Bulan")
+    month_group.setFont(QFont("Arial", 9, QFont.Bold))
     month_group.setStyleSheet(group_style)
     month_layout = QHBoxLayout(month_group)
     month_layout.setContentsMargins(8, 12, 8, 8)
@@ -237,6 +240,7 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
 
     # ===== ROW 3: Pilih Tanggal (dengan checkbox di kiri) =====
     date_range_group = QGroupBox("Pilih Tanggal")
+    date_range_group.setFont(QFont("Arial", 9, QFont.Bold))
     date_range_group.setStyleSheet(group_style)
     date_range_layout = QHBoxLayout(date_range_group)
     date_range_layout.setContentsMargins(8, 12, 8, 8)
@@ -257,8 +261,8 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
     date_range_layout.addWidget(start_date_entry)
     
     # Dash label
-    dash_label = QLabel("   -")
-    dash_label.setStyleSheet("font-size: 13px; font-weight: bold;")
+    dash_label = QLabel(" ──")
+    dash_label.setStyleSheet("font-size: 13px; font-weight: bold; color: black;")
     date_range_layout.addWidget(dash_label)
     
     # End date

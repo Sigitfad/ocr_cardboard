@@ -446,16 +446,25 @@ class MainWindow(QMainWindow):
         # === Camera Status Label ===
         self.camera_label = QLabel("Camera: Not Selected")
         self.camera_label.setFont(QFont("Arial", 9))
-        self.camera_label.setStyleSheet("color: blue;")
+        self.camera_label.setAlignment(Qt.AlignLeft)  # Center alignment
+        self.camera_label.setMinimumHeight(30)  # Tinggi minimum untuk label
+        self.camera_label.setStyleSheet("""
+            QLabel {
+                color: #0066CC;
+                border: 1px solid #aaa;
+                border-radius: 5px;
+                padding: 5px;
+            }
+        """)
         layout.addWidget(self.camera_label)
 
         # === Label Selection dengan GroupBox ===
         # Buat GroupBox dengan border dan title "Select Label :"
         label_selection_group = QGroupBox("Select Label :")
-        label_selection_group.setFont(QFont("Arial", 9))
+        label_selection_group.setFont(QFont("Arial", 9, QFont.Bold))
         label_selection_group.setStyleSheet("""
             QGroupBox {
-                border: 1px solid #000000;
+                border: 1px solid #aaa;
                 border-radius: 5px;
                 margin-top: 8px;
                 padding-top: 10px;
@@ -573,7 +582,7 @@ class MainWindow(QMainWindow):
                 background: none;
             }
         """)
-        self.all_text_tree.setMinimumHeight(150)
+        self.all_text_tree.setMinimumHeight(50)
         all_text_layout.addWidget(self.all_text_tree)
 
         layout.addWidget(all_text_group, 2)
@@ -622,7 +631,7 @@ class MainWindow(QMainWindow):
         self.label_display = QLabel(". . .")
         self.label_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.label_display.setAlignment(Qt.AlignCenter)
-        self.label_display.setStyleSheet("border: none; color: #000000;")
+        self.label_display.setStyleSheet("border: none; color: #b30800;")
         label_box_layout.addWidget(self.label_display)
 
         # ===== Box 2: Total Deteksi (MIDDLE BOX) =====
@@ -650,7 +659,7 @@ class MainWindow(QMainWindow):
         self.total_display = QLabel("0")
         self.total_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.total_display.setAlignment(Qt.AlignCenter)
-        self.total_display.setStyleSheet("border: none; color: #000000;")
+        self.total_display.setStyleSheet("border: none; color: blue;")
         total_box_layout.addWidget(self.total_display)
 
         # ===== Box 3 & 4: OK dan NOT OK (BOTTOM ROW dengan 2 BOX) =====
@@ -685,7 +694,7 @@ class MainWindow(QMainWindow):
         self.ok_display = QLabel("0")
         self.ok_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.ok_display.setAlignment(Qt.AlignCenter)
-        self.ok_display.setStyleSheet("border: none; color: #000000;")
+        self.ok_display.setStyleSheet("border: none; color: blue;")
         ok_box_layout.addWidget(self.ok_display)
 
         # ===== Box NOT OK (RIGHT) =====
@@ -713,7 +722,7 @@ class MainWindow(QMainWindow):
         self.not_ok_display = QLabel("0")
         self.not_ok_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.not_ok_display.setAlignment(Qt.AlignCenter)
-        self.not_ok_display.setStyleSheet("border: none; color: #000000;")
+        self.not_ok_display.setStyleSheet("border: none; color: blue;")
         not_ok_box_layout.addWidget(self.not_ok_display)
 
         # Tambahkan box OK dan NOT OK ke bottom row (horizontal)
@@ -922,7 +931,6 @@ class MainWindow(QMainWindow):
                 background-color: #545b62;
             }
         """)
-        self.btn_refresh.setToolTip("Refresh Data Barang - Menyegarkan tampilan data jika ada delay")
         self.btn_refresh.clicked.connect(self.refresh_data_display)  # Connect ke refresh function
         action_buttons_layout.addWidget(self.btn_refresh, 0)  # Stretch factor 0 - ukuran tetap
         
@@ -1348,7 +1356,7 @@ class MainWindow(QMainWindow):
                     start_date = datetime(selected_start_date.year, selected_start_date.month, selected_start_date.day, 0, 0, 0)
                     end_date = datetime(selected_end_date.year, selected_end_date.month, selected_end_date.day, 23, 59, 59)
                     if start_date > end_date:
-                        raise ValueError("Tanggal Mulai tidak boleh setelah Tanggal Akhir.")
+                        raise ValueError("'Tanggal Mulai' tidak boleh setelah 'Tanggal Akhir'!")
 
                 if start_date:
                     start_date_str_db = start_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -1397,7 +1405,7 @@ class MainWindow(QMainWindow):
                 ).start()
 
             except Exception as e:
-                QMessageBox.critical(self, "Error Filter", f"Gagal menentukan rentang waktu:\n{e}")
+                QMessageBox.critical(self, "Error Filter", f"Gagal Export !\n{e}")
                 dialog.reject()
 
         export_handler = lambda: handle_export_click()
@@ -1434,7 +1442,7 @@ class MainWindow(QMainWindow):
         self.btn_export.setStyleSheet(self.BUTTON_STYLES['primary'])
         
         if result == "NO_DATA":
-            QMessageBox.information(self, "Info", "Tidak ada data yang ditemukan dalam rentang waktu atau filter yang dipilih.")
+            QMessageBox.information(self, "Info", "Tidak ada data !")
             self._update_export_button_ui("Export Gagal!", "danger")
         elif result.startswith("EXPORT_ERROR:"):
             QMessageBox.critical(self, "Error Export", f"Gagal mengekspor data ke Excel:\n{result[13:]}")

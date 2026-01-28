@@ -4,6 +4,13 @@ import numpy as np # Digunakan untuk pengolahan array dan perhitungan numerik, t
 import cv2 # Library OpenCV untuk pengolahan citra dan video (resize, threshold, edge detection, dll)
 from datetime import datetime # Digunakan untuk mengambil dan mengelola tanggal serta waktu saat ini
 from config import Resampling # Digunakan untuk metode resampling gambar (misalnya LANCZOS / ANTIALIAS)
+
+# Suppress OpenCV error messages untuk camera index out of range
+# Ini mencegah spam error message saat aplikasi scan untuk kamera
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
+cv2.setLogLevel(0)  # 0 = Silent, 1 = Error, 2 = Warning, 3 = Info, 4 = Debug
+
 # LANCZOS / ANTIALIAS adalah metode resampling gambar yang digunakan saat resize
 # Fungsinya untuk menjaga kualitas dan ketajaman gambar, terutama teks, agar hasil OCR lebih akurat dan tidak pecah
 
@@ -292,25 +299,47 @@ def find_external_camera(max_cameras=5):
 
     # Loop cek semua kamera dari index 0 hingga max_cameras-1
     for i in range(max_cameras):
-        # Coba buka kamera pada index i
-        cap = cv2.VideoCapture(i)
+        cap = None
+        try:
+            # Coba buka kamera pada index i dengan backend default
+            # Gunakan CAP_ANY untuk kompatibilitas maksimal
+            cap = cv2.VideoCapture(i, cv2.CAP_ANY)
+            
+            # Timeout untuk mencegah hang - set max waktu tunggu
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 1000)  # 1 detik timeout
+            
+            # Cek apakah kamera berhasil dibuka
+            if cap.isOpened():
+                # Coba baca 1 frame untuk validasi kamera benar-benar berfungsi
+                ret, test_frame = cap.read()
+                
+                if ret and test_frame is not None:
+                    # Ambil resolusi kamera (width x height)
+                    w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+                    h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                    
+                    # Validasi kamera memiliki resolusi valid (w>0 dan h>0)
+                    if w > 0 and h > 0:
+                        # Jika index > 0, ini kamera eksternal - langsung return
+                        if i > 0:
+                            cap.release()
+                            return i
+                        else:
+                            # Index 0 adalah built-in, simpan sebagai fallback
+                            best_working_index = i
         
-        # Cek apakah kamera berhasil dibuka
-        if cap.isOpened():
-            # Ambil resolusi kamera (width x height)
-            w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-            h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            
-            cap.release() #Tutup kamera setelah cek resolusi
-            
-            # Validasi kamera memiliki resolusi valid (w>0 dan h>0)
-            if w > 0 and h > 0:
-                # Jika index > 0, ini kamera eksternal - langsung return
-                if i > 0:
-                    return i
-                else:
-                    # Index 0 adalah built-in, simpan sebagai fallback
-                    best_working_index = i
+        except Exception as e:
+            # Tangkap semua error OpenCV dan abaikan
+            # Ini mencegah crash saat scan kamera yang tidak kompatibel
+            pass
+        
+        finally:
+            # Pastikan kamera selalu ditutup, bahkan jika terjadi error
+            if cap is not None:
+                try:
+                    cap.release()
+                except:
+                    pass
     
     return best_working_index #Return kamera terbaik yang ditemukan (prioritas eksternal, fallback built-in)
 
