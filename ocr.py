@@ -2,6 +2,7 @@
 # File ini berisi DetectionLogic class yang menangani OCR, frame processing, dan detection logic
 # MODIFIED: 2-Stage Detection dengan STRUCTURAL CORRECTION untuk huruf tengah JIS dan (S) detection
 # UPDATED: Binary mode diganti dengan Edge Detection mode
+# ADDED: Bounding box untuk menandai area kode yang terdeteksi
 
 import cv2 #Import OpenCV untuk camera capture dan image processing
 import easyocr #Import EasyOCR untuk optical character recognition
@@ -84,6 +85,12 @@ class DetectionLogic(threading.Thread):
         self.reader = easyocr.Reader(['en'], gpu=True, verbose=False)
 
         atexit.register(self.cleanup_temp_files) #Register cleanup function untuk dipanggil saat aplikasi exit
+        
+        # ADDED: Variable untuk menyimpan bounding box terakhir yang terdeteksi
+        self.last_detected_bbox = None
+        self.last_detected_code = None
+        self.bbox_timestamp = 0  # ADDED: Timestamp untuk auto-clear bbox setelah beberapa detik
+        self.bbox_display_duration = 3.0  # ADDED: Durasi tampilan bbox dalam detik (3 detik)
     
     def cleanup_temp_files(self):
         # Fungsi untuk cleanup temporary files saat aplikasi exit
@@ -159,6 +166,74 @@ class DetectionLogic(threading.Thread):
         
         self.camera_status_signal.emit("Camera Off", False) #Emit signal camera off
     
+    def _draw_bounding_box(self, frame, bbox, label_text):
+        """
+        ADDED: Fungsi untuk menggambar bounding box pada frame
+        Tujuan: Visual indicator untuk area kode yang terdeteksi
+        Parameter: frame (numpy array), bbox (list of points), label_text (string)
+        Return: frame dengan bounding box tergambar
+        """
+        if bbox is None or len(bbox) == 0:
+            return frame
+        
+        frame_with_box = frame.copy()
+        
+        # Convert bbox points to integer tuples
+        # bbox dari EasyOCR format: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+        points = np.array(bbox, dtype=np.int32)
+        
+        # Draw polygon (kotak) dengan warna hijau tebal
+        cv2.polylines(frame_with_box, [points], isClosed=True, color=(0, 255, 0), thickness=3)
+        
+        # Calculate position untuk label text (di atas kotak)
+        x_min = int(min([p[0] for p in bbox]))
+        y_min = int(min([p[1] for p in bbox]))
+        
+        # Draw background rectangle untuk text
+        text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+        cv2.rectangle(frame_with_box, 
+                     (x_min, y_min - text_size[1] - 10), 
+                     (x_min + text_size[0] + 10, y_min),
+                     (0, 255, 0), -1)
+        
+        # Draw text label
+        cv2.putText(frame_with_box, label_text, 
+                   (x_min + 5, y_min - 5),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
+        
+        return frame_with_box
+    
+    def _send_bbox_update(self, frame, bbox, code):
+        """
+        ADDED: Fungsi untuk send immediate preview update dengan bbox
+        Tujuan: Tampilkan bbox langsung setelah deteksi tanpa menunggu frame berikutnya
+        Parameter: frame (numpy array), bbox (list of points), code (string)
+        """
+        try:
+            # Draw bbox pada frame
+            frame_with_box = self._draw_bounding_box(frame, bbox, code)
+            
+            # Process frame sama seperti _process_and_send_frame untuk live camera
+            h, w, _ = frame_with_box.shape
+            
+            # Crop frame menjadi square (center crop)
+            min_dim = min(h, w)
+            start_x = (w - min_dim) // 2
+            start_y = (h - min_dim) // 2
+            frame_cropped = frame_with_box[start_y:start_y + min_dim, start_x:start_x + min_dim]
+            
+            # Convert BGR ke RGB
+            frame_rgb = cv2.cvtColor(frame_cropped, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(frame_rgb)
+            
+            from config import Resampling
+            img = img.resize((self.TARGET_WIDTH, self.TARGET_HEIGHT), Resampling)
+            
+            # Emit signal untuk update preview
+            self.update_signal.emit(img)
+        except Exception as e:
+            print(f"Error sending bbox update: {e}")
+    
     def _process_and_send_frame(self, frame, is_static):
         # Fungsi internal untuk process frame sebelum dikirim ke UI
         # Tujuan: Apply transformasi (crop, resize, edge detection, split mode) dan convert ke PIL Image
@@ -167,6 +242,17 @@ class DetectionLogic(threading.Thread):
         from PIL import Image #Import PIL Image untuk convert ke format yang bisa ditampilkan UI
 
         frame_display = frame.copy() #Copy frame untuk avoid modifying original
+        
+        # ADDED: Check apakah bbox sudah expired (lebih dari bbox_display_duration detik)
+        current_time = time.time()
+        if self.last_detected_bbox is not None and self.last_detected_code is not None:
+            # Jika bbox sudah lebih dari duration, clear bbox
+            if current_time - self.bbox_timestamp > self.bbox_display_duration:
+                self.last_detected_bbox = None
+                self.last_detected_code = None
+            else:
+                # Jika masih dalam duration, tampilkan bbox
+                frame_display = self._draw_bounding_box(frame_display, self.last_detected_bbox, self.last_detected_code)
 
         # Jika bukan static file (live camera)
         if not is_static:
@@ -223,9 +309,7 @@ class DetectionLogic(threading.Thread):
             # Apply edge detection jika mode aktif
             if self.edge_mode or self.split_mode:
                 frame_display = apply_edge_detection(frame_display)
-                
-                # Tambahkan text overlay untuk info mode
-                cv2.putText(frame_display, "Edge Detection Mode", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
 
             # Convert BGR ke RGB
             frame_rgb = cv2.cvtColor(frame_display, cv2.COLOR_BGR2RGB)
@@ -429,13 +513,14 @@ class DetectionLogic(threading.Thread):
     
     def scan_frame(self, frame, is_static=False, original_frame=None):
         """
-        TAHAP 1: OCR mentah
+        TAHAP 1: OCR mentah dengan bounding box detection
         TAHAP 2: Structural correction + Fuzzy matching
         Tujuan: Main function untuk scan frame dan detect battery code
         Parameter: frame (numpy array), is_static (boolean), original_frame (untuk save)
         """
         # Variabel untuk menyimpan hasil match terbaik
         best_match = None
+        best_match_bbox = None  # ADDED: Simpan bounding box untuk match terbaik
         
         # Frame yang akan disave: gunakan original jika ada, fallback ke frame
         frame_to_save = original_frame if original_frame is not None else frame
@@ -487,9 +572,10 @@ class DetectionLogic(threading.Thread):
             h, w = frame.shape[:2]
             
             # Resize frame jika terlalu besar (max width 640 untuk speed up OCR)
+            scale_factor = 1.0  # ADDED: Track scale factor untuk bbox
             if w > 640:
-                scale = 640 / w
-                new_w, new_h = 640, int(h * scale)
+                scale_factor = 640 / w
+                new_w, new_h = 640, int(h * scale_factor)
                 frame_small = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
             else:
                 frame_small = frame
@@ -537,6 +623,7 @@ class DetectionLogic(threading.Thread):
                 processing_stages['Binary'] = processed_frame_binary
 
             all_results = [] #List untuk menyimpan semua hasil OCR dari berbagai preprocessing
+            all_results_with_bbox = []  # ADDED: List untuk menyimpan hasil dengan bounding box
             
             # Pilih allowlist characters sesuai preset
             if self.preset == "JIS":
@@ -547,22 +634,29 @@ class DetectionLogic(threading.Thread):
             # Loop setiap preprocessing stage dan jalankan OCR
             for stage_name, processed_frame in processing_stages.items():
                 try:
-                    # Jalankan EasyOCR readtext
-                    # detail=0: return hanya text tanpa bounding box dan confidence
-                    # paragraph: True untuk DIN (text bisa multi-line), False untuk JIS (single line)
-                    # min_size: minimum size detection box
-                    # width_ths: threshold untuk grouping text
+                    # Jalankan EasyOCR readtext dengan detail=1 untuk dapatkan bounding box
+                    # detail=1: return [bbox, text, confidence]
+                    # paragraph: group text dalam paragraf (untuk DIN)
+                    # min_size: minimum text size untuk detection
+                    # width_ths: threshold untuk text width
                     # allowlist: karakter yang diperbolehkan
                     results = self.reader.readtext(
                         processed_frame, 
-                        detail=0,
+                        detail=1,  # CHANGED: dari detail=0 ke detail=1 untuk dapat bbox
                         paragraph=False if self.preset == "JIS" else True,
                         min_size=10 if self.preset == "JIS" else 15,
                         width_ths=0.7 if self.preset == "JIS" else 0.5,
                         allowlist=allowlist_chars
                     )
-                    # Tambahkan hasil ke all_results
-                    all_results.extend(results)
+                    
+                    # ADDED: Parse results dan simpan dengan bbox
+                    for result in results:
+                        bbox, text, confidence = result
+                        # Scale bbox back ke original frame size
+                        scaled_bbox = [[int(x / scale_factor), int(y / scale_factor)] for x, y in bbox]
+                        all_results.append(text)
+                        all_results_with_bbox.append({'text': text, 'bbox': scaled_bbox, 'confidence': confidence})
+                        
                 except Exception as e:
                     # Print error tapi lanjut ke stage berikutnya
                     print(f"OCR error on {stage_name}: {e}")
@@ -582,7 +676,10 @@ class DetectionLogic(threading.Thread):
                 best_match_score = 0.0
                 
                 # Loop setiap text hasil OCR
-                for text in all_results:
+                for result_data in all_results_with_bbox:
+                    text = result_data['text']
+                    bbox = result_data['bbox']
+                    
                     # Apply OCR error correction
                     text_fixed = fix_common_ocr_errors(text, self.preset)
                     
@@ -597,6 +694,7 @@ class DetectionLogic(threading.Thread):
                     if matched_type and score > best_match_score:
                         best_match_score = score
                         best_match_text = matched_type
+                        best_match_bbox = bbox  # ADDED: Simpan bbox
                 
                 # Jika ada match dengan score > 0.8, gunakan itu
                 if best_match_text and best_match_score > 0.8:
@@ -608,7 +706,10 @@ class DetectionLogic(threading.Thread):
                 best_match_score = 0.0
                 
                 # Loop setiap text hasil OCR
-                for text in all_results:
+                for result_data in all_results_with_bbox:
+                    text = result_data['text']
+                    bbox = result_data['bbox']
+                    
                     # Skip jika text terlalu pendek (< 5 char tanpa spasi dan (S))
                     if len(text.replace(' ', '').replace('(S)', '')) < 5:
                         continue
@@ -620,6 +721,7 @@ class DetectionLogic(threading.Thread):
                     if matched_type and score > best_match_score:
                         best_match_score = score
                         best_match_text = matched_type
+                        best_match_bbox = bbox  # ADDED: Simpan bbox
                 
                 # Jika ada match dengan score > 0.85, gunakan itu
                 if best_match_text and best_match_score > 0.85:
@@ -628,6 +730,11 @@ class DetectionLogic(threading.Thread):
             # Jika ada match yang ditemukan
             if best_match:
                 detected_code = best_match.strip() # Clean detected code
+                
+                # ADDED: Simpan bbox dan code untuk preview dengan timestamp
+                self.last_detected_bbox = best_match_bbox
+                self.last_detected_code = detected_code
+                self.bbox_timestamp = time.time()  # ADDED: Set timestamp untuk auto-clear
                 
                 # Normalize DIN code (add proper spacing)
                 if self.preset == "DIN":
@@ -672,8 +779,16 @@ class DetectionLogic(threading.Thread):
                 # Generate filename untuk save image
                 img_filename = f"karton_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
                 img_path = os.path.join(IMAGE_DIR, img_filename)
-                frame_binary = convert_frame_to_binary(frame_to_save) #Convert frame ke binary/edge detection untuk save 
+                
+                # MODIFIED: Draw bounding box pada frame sebelum save
+                if best_match_bbox is not None:
+                    frame_with_box = self._draw_bounding_box(frame_to_save, best_match_bbox, detected_code)
+                    frame_binary = convert_frame_to_binary(frame_with_box)
+                else:
+                    frame_binary = convert_frame_to_binary(frame_to_save)
+                
                 cv2.imwrite(img_path, frame_binary) #Save image ke disk
+                
                 #Insert detection ke database
                 new_id = insert_detection(timestamp, detected_code, current_preset, img_path, status, target_session)
 
@@ -694,7 +809,18 @@ class DetectionLogic(threading.Thread):
 
                 self.code_detected_signal.emit(detected_code) #Emit signal code detected ke UI
                 
+                # ADDED: Force update preview dengan bbox segera setelah deteksi
+                if not is_static:
+                    # Trigger immediate frame update dengan bbox
+                    threading.Thread(target=self._send_bbox_update, 
+                                   args=(frame_to_save.copy(), best_match_bbox, detected_code),
+                                   daemon=True).start()
+                
             else:
+                # ADDED: Clear bbox jika tidak ada deteksi
+                self.last_detected_bbox = None
+                self.last_detected_code = None
+                
                 # Jika tidak ada match dan ini static file scan
                 if is_static:
                     self.code_detected_signal.emit("FAILED") #Emit signal FAILED
@@ -723,6 +849,10 @@ class DetectionLogic(threading.Thread):
         # Fungsi untuk stop detection thread
         # Tujuan: Hentikan live camera detection    
         self.running = False # Set flag running False (akan stop loop di run())
+        
+        # ADDED: Clear bounding box saat stop
+        self.last_detected_bbox = None
+        self.last_detected_code = None
         
         # Release camera jika ada
         if self.cap:

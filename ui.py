@@ -390,7 +390,7 @@ class MainWindow(QMainWindow):
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 30px;
+                left: 45px;
                 padding: 2px 0px;
             }
         """)
@@ -428,13 +428,13 @@ class MainWindow(QMainWindow):
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 50px;
+                left: 40px;
                 padding: 2px 0px;
             }
         """)
 
         self.cb_edge = QCheckBox("BINARY COLOR")
-        self.cb_split = QCheckBox("SHOW SPLIT SCREEN")
+        self.cb_split = QCheckBox("SPLIT SCREEN")
 
         option_change = set_options
 
@@ -464,7 +464,7 @@ class MainWindow(QMainWindow):
 
         # === Label Selection dengan GroupBox ===
         # Buat GroupBox dengan border dan title "Select Label :"
-        label_selection_group = QGroupBox("Select Label :")
+        label_selection_group = QGroupBox("Select Label")
         label_selection_group.setFont(QFont("Arial", 9, QFont.Bold))
         label_selection_group.setStyleSheet("""
             QGroupBox {
@@ -475,8 +475,8 @@ class MainWindow(QMainWindow):
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 3px;
+                left: 85px;
+                padding: 2 3px;
                 color: #000000;
             }
         """)
@@ -650,7 +650,7 @@ class MainWindow(QMainWindow):
         self.label_display = QLabel(". . .")
         self.label_display.setFont(QFont("Arial", 10, QFont.Bold))
         self.label_display.setAlignment(Qt.AlignCenter)
-        self.label_display.setStyleSheet("border: none; color: black;")
+        self.label_display.setStyleSheet("border: none; color: blue;")
         label_box_layout.addWidget(self.label_display)
 
         # ===== Box 2: TOTAL =====

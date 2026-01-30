@@ -49,8 +49,8 @@ def create_export_dialog(parent, logic, preset_combo, jis_type_combo):
         }
         QGroupBox::title {
             subcontrol-origin: margin;
-            left: 13px;
-            padding: 0 1px;
+            left: 11px;
+            padding: 1 1px;
         }
     """
     
